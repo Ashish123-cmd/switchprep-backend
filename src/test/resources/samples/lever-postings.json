@@ -1,0 +1,15 @@
+[
+  {
+    "id": "lever-posting-123",
+    "text": "Senior Java Engineer",
+    "categories": {
+      "location": "Remote",
+      "team": "Engineering",
+      "department": "Product"
+    },
+    "descriptionPlain": "Build backend services with Java and Spring Boot. Requires 3+ years of experience.",
+    "hostedUrl": "https://jobs.lever.co/sample/lever-posting-123",
+    "applyUrl": "https://jobs.lever.co/sample/lever-posting-123/apply",
+    "createdAt": 1735689600000
+  }
+]

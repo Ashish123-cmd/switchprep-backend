@@ -1,0 +1,95 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: switchmate-backend
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+app:
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN}
+  jwt:
+    secret: ${JWT_SECRET}
+  storage:
+    resume-directory: ${RESUME_STORAGE_DIRECTORY:./uploads/resumes}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:gpt-4o-mini}
+  admin:
+    api-key: ${ADMIN_API_KEY:}
+  jobs:
+    ingestion:
+      enabled: ${JOB_INGESTION_ENABLED:true}
+      cron: ${JOB_INGESTION_CRON:0 0 */6 * * *}
+    http:
+      connect-timeout: ${JOB_SOURCE_CONNECT_TIMEOUT:3s}
+      read-timeout: ${JOB_SOURCE_READ_TIMEOUT:20s}
+    greenhouse:
+      board-tokens: ${GREENHOUSE_BOARD_TOKENS:}
+    lever:
+      companies: ${LEVER_COMPANIES:}
+    ashby:
+      boards: ${ASHBY_BOARDS:}
+    matching:
+      weights:
+        skills: ${JOB_MATCH_SKILL_WEIGHT:0.7}
+        experience: ${JOB_MATCH_EXPERIENCE_WEIGHT:0.2}
+        preferences: ${JOB_MATCH_PREFERENCE_WEIGHT:0.1}
+    known-skills:
+      - Java
+      - Spring Boot
+      - PostgreSQL
+      - SQL
+      - Python
+      - JavaScript
+      - TypeScript
+      - React
+      - AWS
+      - Azure
+      - Docker
+      - Kubernetes
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: ${TEST_DB_URL}
+    username: ${TEST_DB_USERNAME}
+    password: ${TEST_DB_PASSWORD}
+
+app:
+  cors:
+    allowed-origin: ${TEST_FRONTEND_ORIGIN}
