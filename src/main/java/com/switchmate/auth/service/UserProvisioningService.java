@@ -10,6 +10,7 @@ import com.switchmate.domain.entity.JobPreference;
 import com.switchmate.domain.entity.Profile;
 import com.switchmate.domain.entity.StandardAnswer;
 import com.switchmate.domain.entity.User;
+import com.switchmate.domain.enums.AuthProvider;
 import com.switchmate.repository.AutoApplySettingsRepository;
 import com.switchmate.repository.JobPreferenceRepository;
 import com.switchmate.repository.ProfileRepository;
@@ -41,6 +42,16 @@ public class UserProvisioningService {
 	@Transactional
 	public User createUserWithDefaults(String email, String passwordHash, String fullName) {
 		User user = userRepository.save(new User(email, passwordHash, fullName));
+		provisionDefaults(user.getId());
+		return user;
+	}
+
+	@Transactional
+	public User createGoogleUser(String email, String fullName, String googleSubject) {
+		User user = new User(email, null, fullName);
+		user.setAuthProvider(AuthProvider.GOOGLE);
+		user.setGoogleSubject(googleSubject);
+		user = userRepository.save(user);
 		provisionDefaults(user.getId());
 		return user;
 	}

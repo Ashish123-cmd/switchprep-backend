@@ -7,6 +7,7 @@ import jakarta.validation.ConstraintViolationException;
 import com.switchmate.common.exception.BadRequestException;
 import com.switchmate.common.exception.ConflictException;
 import com.switchmate.common.exception.InvalidAdminApiKeyException;
+import com.switchmate.common.exception.InvalidGoogleTokenException;
 import com.switchmate.common.exception.NotFoundException;
 import com.switchmate.common.exception.RateLimitExceededException;
 import com.switchmate.common.exception.ResumeParsingException;
@@ -99,6 +100,11 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(InvalidAdminApiKeyException.class)
 	public ResponseEntity<ApiErrorResponse> handleInvalidAdminApiKey(InvalidAdminApiKeyException exception) {
 		return error(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Invalid admin API key", null);
+	}
+
+	@ExceptionHandler(InvalidGoogleTokenException.class)
+	public ResponseEntity<ApiErrorResponse> handleInvalidGoogleToken(InvalidGoogleTokenException exception) {
+		return error(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", exception.getMessage(), null);
 	}
 
 	@ExceptionHandler(AuthenticationException.class)

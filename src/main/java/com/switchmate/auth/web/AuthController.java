@@ -14,10 +14,13 @@ import org.springframework.web.multipart.MultipartFile;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import com.switchmate.auth.dto.AuthResponse;
+import com.switchmate.auth.dto.GoogleAuthRequest;
+import com.switchmate.auth.dto.GoogleAuthResponse;
 import com.switchmate.auth.dto.LoginRequest;
 import com.switchmate.auth.dto.SignupCompleteRequest;
 import com.switchmate.auth.dto.UserResponse;
 import com.switchmate.auth.service.AuthService;
+import com.switchmate.auth.service.GoogleAuthService;
 import com.switchmate.auth.service.SignupDraftService;
 import com.switchmate.common.exception.RateLimitExceededException;
 import com.switchmate.common.ratelimit.RateLimiter;
@@ -31,11 +34,17 @@ import jakarta.validation.Valid;
 public class AuthController {
 
 	private final AuthService authService;
+	private final GoogleAuthService googleAuthService;
 	private final SignupDraftService signupDraftService;
 	private final RateLimiter rateLimiter;
 
-	public AuthController(AuthService authService, SignupDraftService signupDraftService, RateLimiter rateLimiter) {
+	public AuthController(
+			AuthService authService,
+			GoogleAuthService googleAuthService,
+			SignupDraftService signupDraftService,
+			RateLimiter rateLimiter) {
 		this.authService = authService;
+		this.googleAuthService = googleAuthService;
 		this.signupDraftService = signupDraftService;
 		this.rateLimiter = rateLimiter;
 	}
@@ -60,6 +69,11 @@ public class AuthController {
 	@PostMapping("/login")
 	public AuthResponse login(@Valid @RequestBody LoginRequest request) {
 		return authService.login(request);
+	}
+
+	@PostMapping("/google")
+	public GoogleAuthResponse googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
+		return googleAuthService.authenticate(request.idToken());
 	}
 
 	@GetMapping("/me")

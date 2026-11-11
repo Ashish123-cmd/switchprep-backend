@@ -44,6 +44,7 @@ For a quick integrated UI/API demo without database credentials, run with `SPRIN
 | `DB_PASSWORD` | Yes | Application database password |
 | `FRONTEND_ORIGIN` | Yes | Allowed browser origin for CORS |
 | `JWT_SECRET` | Yes | Base64-encoded signing key with at least 32 random bytes |
+| `GOOGLE_CLIENT_ID` | For Google sign-in | OAuth client ID used to verify Google ID token audiences |
 | `ADMIN_API_KEY` | For manual ingestion | Key sent as `X-Admin-Api-Key`; empty configuration rejects ingestion requests |
 | `SERVER_PORT` | No | HTTP port, defaults to `8080` |
 | `SPRING_PROFILES_ACTIVE` | No | Set to `fake-ai` to use the fake resume parser |
@@ -99,6 +100,19 @@ curl.exe -X POST `
 ```
 
 Only PDF and DOCX files up to 5 MB are accepted. The API stores the uploaded file and returns sample parsed profile data for review; it does not overwrite the saved profile. The client can save reviewed data with `PUT /api/profile`.
+
+## Google Sign-In
+
+`POST /api/auth/google` accepts a Google ID token and is public. Set `GOOGLE_CLIENT_ID` so the backend can verify the token signature, expiry, issuer, and audience.
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8080/api/auth/google" `
+  -ContentType "application/json" `
+  -Body (@{ idToken = $googleIdToken } | ConvertTo-Json)
+```
+
+The response contains `token`, `user`, and `isNewUser`. Existing local accounts are linked by matching email; a new account is provisioned when neither the Google subject nor the email matches. Invalid tokens and unverified email addresses return `401`.
 
 ## Response Contracts
 

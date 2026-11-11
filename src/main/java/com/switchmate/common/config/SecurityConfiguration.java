@@ -51,7 +51,8 @@ public class SecurityConfiguration {
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 						.requestMatchers("/swagger-ui", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
 						.permitAll()
-						.requestMatchers("/api/auth/signup/resume", "/api/auth/signup/complete", "/api/auth/login")
+						.requestMatchers("/api/auth/signup/resume", "/api/auth/signup/complete", "/api/auth/login",
+								"/api/auth/google")
 						.permitAll()
 						.requestMatchers("/api/admin/jobs/ingest").permitAll()
 						.requestMatchers("/api/**").authenticated()

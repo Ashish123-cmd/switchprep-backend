@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.switchmate.auth.dto.AuthResponse;
 import com.switchmate.auth.dto.LoginRequest;
-import com.switchmate.auth.dto.ProfileResponse;
 import com.switchmate.auth.dto.SignupCompleteRequest;
 import com.switchmate.auth.dto.UserResponse;
 import com.switchmate.common.exception.ConflictException;
@@ -111,11 +110,7 @@ public class AuthService {
 	}
 
 	private UserResponse toUserResponse(User user, Profile profile) {
-		return new UserResponse(
-				user.getId(),
-				user.getFullName(),
-				user.getEmail(),
-				new ProfileResponse(profile.isOnboardingCompleted()));
+		return UserResponseMapper.toResponse(user, profile);
 	}
 
 	private String normalizeEmail(String email) {
