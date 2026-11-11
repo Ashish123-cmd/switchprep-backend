@@ -24,6 +24,8 @@ public class Profile {
 	private String phone;
 	private String location;
 	private String headline;
+
+	@Column(length = 4000)
 	private String summary;
 
 	@Column(name = "total_experience_years")

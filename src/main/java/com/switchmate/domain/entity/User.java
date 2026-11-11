@@ -6,6 +6,8 @@ import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+import com.switchmate.domain.enums.AuthProvider;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -24,11 +26,17 @@ public class User {
 	@Column(nullable = false, unique = true, length = 320)
 	private String email;
 
-	@Column(name = "password_hash", nullable = false)
+	@Column(name = "password_hash")
 	private String passwordHash;
 
 	@Column(name = "full_name", nullable = false)
 	private String fullName;
+
+	@Column(name = "auth_provider", nullable = false, length = 20)
+	private AuthProvider authProvider = AuthProvider.LOCAL;
+
+	@Column(name = "google_subject")
+	private String googleSubject;
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	@CreationTimestamp
@@ -41,6 +49,7 @@ public class User {
 		this.email = email;
 		this.passwordHash = passwordHash;
 		this.fullName = fullName;
+		this.authProvider = AuthProvider.LOCAL;
 	}
 
 	public UUID getId() {
@@ -69,6 +78,22 @@ public class User {
 
 	public void setFullName(String fullName) {
 		this.fullName = fullName;
+	}
+
+	public AuthProvider getAuthProvider() {
+		return authProvider;
+	}
+
+	public void setAuthProvider(AuthProvider authProvider) {
+		this.authProvider = authProvider;
+	}
+
+	public String getGoogleSubject() {
+		return googleSubject;
+	}
+
+	public void setGoogleSubject(String googleSubject) {
+		this.googleSubject = googleSubject;
 	}
 
 	public Instant getCreatedAt() {

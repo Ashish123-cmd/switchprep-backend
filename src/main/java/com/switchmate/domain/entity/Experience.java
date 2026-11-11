@@ -35,6 +35,7 @@ public class Experience {
 	@Column(name = "end_date")
 	private LocalDate endDate;
 
+	@Column(length = 4000)
 	private String description;
 
 	protected Experience() {

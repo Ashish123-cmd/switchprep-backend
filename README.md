@@ -29,6 +29,8 @@ mvn spring-boot:run
 
 The API listens on port `8080` by default. Flyway applies migrations automatically. The configured database credentials must match those supplied to Docker Compose.
 
+For a quick integrated UI/API demo without database credentials, run with `SPRING_PROFILES_ACTIVE=local,fake-ai`. The `local` profile uses an in-memory H2 database and disables scheduled ingestion; the `fake-ai` profile avoids OpenAI. Local data is discarded when the backend stops. The default local boards are Lever's `leverdemo` and Ashby's `Ashby`; trigger ingestion manually using `X-Admin-Api-Key: local-ingest-key`.
+
 ## Environment Variables
 
 | Variable | Required | Default / purpose |

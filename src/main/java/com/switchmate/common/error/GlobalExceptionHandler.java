@@ -8,7 +8,9 @@ import com.switchmate.common.exception.BadRequestException;
 import com.switchmate.common.exception.ConflictException;
 import com.switchmate.common.exception.InvalidAdminApiKeyException;
 import com.switchmate.common.exception.NotFoundException;
+import com.switchmate.common.exception.RateLimitExceededException;
 import com.switchmate.common.exception.ResumeParsingException;
+import com.switchmate.common.exception.SignupDraftExpiredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.AuthenticationException;
@@ -82,6 +84,16 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(ConflictException.class)
 	public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException exception) {
 		return error(HttpStatus.CONFLICT, "CONFLICT", exception.getMessage(), null);
+	}
+
+	@ExceptionHandler(SignupDraftExpiredException.class)
+	public ResponseEntity<ApiErrorResponse> handleSignupDraftExpired(SignupDraftExpiredException exception) {
+		return error(HttpStatus.GONE, "SIGNUP_DRAFT_EXPIRED", exception.getMessage(), null);
+	}
+
+	@ExceptionHandler(RateLimitExceededException.class)
+	public ResponseEntity<ApiErrorResponse> handleRateLimitExceeded(RateLimitExceededException exception) {
+		return error(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", exception.getMessage(), null);
 	}
 
 	@ExceptionHandler(InvalidAdminApiKeyException.class)

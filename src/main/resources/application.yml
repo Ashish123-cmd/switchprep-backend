@@ -11,15 +11,15 @@ spring:
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:h2:mem:switchmate;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${DDL_AUTO:create-drop}
   flyway:
-    enabled: true
+    enabled: ${FLYWAY_ENABLED:false}
 
 springdoc:
   swagger-ui:
@@ -29,19 +29,23 @@ springdoc:
 
 app:
   cors:
-    allowed-origin: ${FRONTEND_ORIGIN}
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   jwt:
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:U3dpdGNobWF0ZS1sb2NhbC1kZXYta2V5LTIwMjYtMDkt}
   storage:
     resume-directory: ${RESUME_STORAGE_DIRECTORY:./uploads/resumes}
   openai:
     api-key: ${OPENAI_API_KEY:}
+    api-key-openrouter: ${OPENROUTER_API_KEY:}
+    endpoint: ${OPENAI_ENDPOINT:https://api.openai.com/v1/chat/completions}
+    endpoint-openrouter: ${OPENROUTER_ENDPOINT:https://openrouter.ai/api/v1/chat/completions}
     model: ${OPENAI_MODEL:gpt-4o-mini}
+    model-openrouter: ${OPENROUTER_MODEL:openai/gpt-4o-mini}
   admin:
-    api-key: ${ADMIN_API_KEY:}
+    api-key: ${ADMIN_API_KEY:local-ingest-key}
   jobs:
     ingestion:
-      enabled: ${JOB_INGESTION_ENABLED:true}
+      enabled: ${JOB_INGESTION_ENABLED:false}
       cron: ${JOB_INGESTION_CRON:0 0 */6 * * *}
     http:
       connect-timeout: ${JOB_SOURCE_CONNECT_TIMEOUT:3s}
@@ -49,9 +53,9 @@ app:
     greenhouse:
       board-tokens: ${GREENHOUSE_BOARD_TOKENS:}
     lever:
-      companies: ${LEVER_COMPANIES:}
+      companies: ${LEVER_COMPANIES:leverdemo}
     ashby:
-      boards: ${ASHBY_BOARDS:}
+      boards: ${ASHBY_BOARDS:Ashby}
     matching:
       weights:
         skills: ${JOB_MATCH_SKILL_WEIGHT:0.7}

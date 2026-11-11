@@ -2,6 +2,7 @@ package com.switchmate.jobs.web;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.switchmate.common.exception.InvalidAdminApiKeyException;
 import com.switchmate.jobs.ingestion.JobIngestionService;
-import com.switchmate.jobs.ingestion.JobIngestionSummary;
+import com.switchmate.jobs.ingestion.JobIngestionService.JobSourceFetch;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
@@ -30,13 +31,13 @@ public class JobIngestionController {
 	}
 
 	@PostMapping("/ingest")
-	public JobIngestionSummary ingest(@RequestHeader(name = "X-Admin-Api-Key", required = false) String apiKey) {
+	public List<JobSourceFetch> ingest(@RequestHeader(name = "X-Admin-Api-Key", required = false) String apiKey) {
 		if (configuredAdminApiKey == null || configuredAdminApiKey.isBlank()
 				|| apiKey == null
 				|| !MessageDigest.isEqual(
 						configuredAdminApiKey.getBytes(StandardCharsets.UTF_8), apiKey.getBytes(StandardCharsets.UTF_8))) {
 			throw new InvalidAdminApiKeyException();
 		}
-		return jobIngestionService.ingest();
+		return jobIngestionService.ingestAndFetch();
 	}
 }

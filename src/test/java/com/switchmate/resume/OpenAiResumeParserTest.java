@@ -28,7 +28,7 @@ class OpenAiResumeParserTest {
 		ObjectMapper objectMapper = new ObjectMapper();
 		RestClient.Builder builder = RestClient.builder();
 		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-		OpenAiResumeParser parser = new OpenAiResumeParser(builder, objectMapper, "test-api-key", "test-model");
+		OpenAiResumeParser parser = parserWithOpenAiConfig(builder, objectMapper);
 		String profileJson = """
 				{"name":"Sam Lee","phone":null,"location":"Toronto","headline":"Engineer","summary":"Backend engineer","totalExperienceYears":4,"skills":["Java"],"experiences":[],"educations":[]}
 				""";
@@ -52,7 +52,7 @@ class OpenAiResumeParserTest {
 		ObjectMapper objectMapper = new ObjectMapper();
 		RestClient.Builder builder = RestClient.builder();
 		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-		OpenAiResumeParser parser = new OpenAiResumeParser(builder, objectMapper, "test-api-key", "test-model");
+		OpenAiResumeParser parser = parserWithOpenAiConfig(builder, objectMapper);
 		String completion = objectMapper.writeValueAsString(Map.of(
 				"choices", List.of(Map.of("message", Map.of("content", "{invalid json")))));
 
@@ -62,5 +62,17 @@ class OpenAiResumeParserTest {
 
 		assertThrows(ResumeParsingException.class, () -> parser.parse("resume text"));
 		server.verify();
+	}
+
+	private OpenAiResumeParser parserWithOpenAiConfig(RestClient.Builder builder, ObjectMapper objectMapper) {
+		return new OpenAiResumeParser(
+				builder,
+				objectMapper,
+				"test-api-key",
+				"",
+				COMPLETIONS_URL,
+				"https://openrouter.ai/api/v1/chat/completions",
+				"test-model",
+				"openai/gpt-4o-mini");
 	}
 }

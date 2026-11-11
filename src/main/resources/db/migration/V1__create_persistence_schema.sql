@@ -1,9 +1,12 @@
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     email VARCHAR(320) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255),
     full_name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    auth_provider VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
+    google_subject VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_users_google_subject UNIQUE (google_subject)
 );
 
 CREATE TABLE profiles (
@@ -136,8 +139,17 @@ CREATE TABLE excluded_companies (
     PRIMARY KEY (user_id, company)
 );
 
+CREATE TABLE signup_drafts (
+    id UUID PRIMARY KEY,
+    resume_path VARCHAR(512) NOT NULL,
+    parsed_profile_json TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
 CREATE INDEX idx_experiences_profile_id ON experiences (profile_id);
 CREATE INDEX idx_educations_profile_id ON educations (profile_id);
 CREATE INDEX idx_jobs_active_posted_at ON jobs (active, posted_at DESC);
 CREATE INDEX idx_user_job_state_job_id ON user_job_state (job_id);
 CREATE INDEX idx_applications_job_id ON applications (job_id);
+CREATE INDEX idx_signup_drafts_expires_at ON signup_drafts (expires_at);

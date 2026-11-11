@@ -1,5 +1,6 @@
 package com.switchmate.auth.service;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -11,63 +12,81 @@ import org.springframework.transaction.annotation.Transactional;
 import com.switchmate.auth.dto.AuthResponse;
 import com.switchmate.auth.dto.LoginRequest;
 import com.switchmate.auth.dto.ProfileResponse;
-import com.switchmate.auth.dto.SignupRequest;
+import com.switchmate.auth.dto.SignupCompleteRequest;
 import com.switchmate.auth.dto.UserResponse;
 import com.switchmate.common.exception.ConflictException;
 import com.switchmate.common.exception.NotFoundException;
-import com.switchmate.domain.entity.AutoApplySettings;
-import com.switchmate.domain.entity.JobPreference;
 import com.switchmate.domain.entity.Profile;
-import com.switchmate.domain.entity.StandardAnswer;
 import com.switchmate.domain.entity.User;
-import com.switchmate.repository.AutoApplySettingsRepository;
-import com.switchmate.repository.JobPreferenceRepository;
+import com.switchmate.repository.EducationRepository;
+import com.switchmate.repository.ExperienceRepository;
 import com.switchmate.repository.ProfileRepository;
-import com.switchmate.repository.StandardAnswerRepository;
 import com.switchmate.repository.UserRepository;
+import com.switchmate.resume.ParsedProfile;
 import com.switchmate.security.TokenService;
+import com.switchmate.storage.FileStorage;
 
 @Service
 public class AuthService {
 
 	private final UserRepository userRepository;
 	private final ProfileRepository profileRepository;
-	private final JobPreferenceRepository jobPreferenceRepository;
-	private final StandardAnswerRepository standardAnswerRepository;
-	private final AutoApplySettingsRepository autoApplySettingsRepository;
+	private final ExperienceRepository experienceRepository;
+	private final EducationRepository educationRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final TokenService tokenService;
+	private final UserProvisioningService userProvisioningService;
+	private final SignupDraftService signupDraftService;
+	private final SignupProfileMapper signupProfileMapper;
+	private final FileStorage fileStorage;
 
 	public AuthService(
 			UserRepository userRepository,
 			ProfileRepository profileRepository,
-			JobPreferenceRepository jobPreferenceRepository,
-			StandardAnswerRepository standardAnswerRepository,
-			AutoApplySettingsRepository autoApplySettingsRepository,
+			ExperienceRepository experienceRepository,
+			EducationRepository educationRepository,
 			PasswordEncoder passwordEncoder,
-			TokenService tokenService) {
+			TokenService tokenService,
+			UserProvisioningService userProvisioningService,
+			SignupDraftService signupDraftService,
+			SignupProfileMapper signupProfileMapper,
+			FileStorage fileStorage) {
 		this.userRepository = userRepository;
 		this.profileRepository = profileRepository;
-		this.jobPreferenceRepository = jobPreferenceRepository;
-		this.standardAnswerRepository = standardAnswerRepository;
-		this.autoApplySettingsRepository = autoApplySettingsRepository;
+		this.experienceRepository = experienceRepository;
+		this.educationRepository = educationRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.tokenService = tokenService;
+		this.userProvisioningService = userProvisioningService;
+		this.signupDraftService = signupDraftService;
+		this.signupProfileMapper = signupProfileMapper;
+		this.fileStorage = fileStorage;
 	}
 
 	@Transactional
-	public AuthResponse signup(SignupRequest request) {
+	public AuthResponse completeSignup(SignupCompleteRequest request) {
+		SignupDraftService.ConsumedDraft draft = signupDraftService.consumeDraft(request.draftId());
+
 		String email = normalizeEmail(request.email());
 		if (userRepository.existsByEmail(email)) {
 			throw new ConflictException("Email is already registered");
 		}
 
-		User user = userRepository.save(new User(email, passwordEncoder.encode(request.password()), request.name().strip()));
+		User user = userProvisioningService.createUserWithDefaults(
+				email, passwordEncoder.encode(request.password()), request.name().strip());
 		UUID userId = user.getId();
-		Profile profile = profileRepository.save(new Profile(userId));
-		jobPreferenceRepository.save(new JobPreference(userId));
-		standardAnswerRepository.save(new StandardAnswer(userId));
-		autoApplySettingsRepository.save(new AutoApplySettings(userId));
+		Profile profile = profileRepository.findById(userId).orElseThrow();
+
+		ParsedProfile parsedProfile = draft.parsedProfile();
+		signupProfileMapper.applyToProfile(profile, parsedProfile);
+
+		String storedResumePath = fileStorage.moveDraft(draft.fileName(), userId);
+		profile.setResumeFileName(storedResumePath);
+		profile.setResumeUploadedAt(Instant.now());
+		profileRepository.save(profile);
+
+		experienceRepository.saveAll(signupProfileMapper.toExperiences(userId, parsedProfile));
+		educationRepository.saveAll(signupProfileMapper.toEducations(userId, parsedProfile));
 
 		return new AuthResponse(tokenService.issue(userId), toUserResponse(user, profile));
 	}

@@ -1,10 +1,13 @@
 package com.switchmate.jobs.ingestion;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.switchmate.domain.entity.Job;
+import com.switchmate.domain.enums.JobSourceType;
 import com.switchmate.repository.JobRepository;
 
 @Service
@@ -29,36 +33,59 @@ public class JobIngestionService {
 
 	@Transactional
 	public JobIngestionSummary ingest() {
+		return persist(fetchAllSources());
+	}
+
+	public List<JobSourceFetch> fetchAllSources() {
+		List<JobSourceFetch> fetches = new ArrayList<>();
+		for (JobSource source : sources) {
+			try {
+				fetches.add(new JobSourceFetch(source.type(), source.fetchJobs(), true));
+			} catch (IncompleteJobFetchException exception) {
+				fetches.add(new JobSourceFetch(source.type(), exception.fetchedJobs(), false));
+			} catch (RuntimeException exception) {
+				logger.error("Job ingestion failed for source {}", source.type(), exception);
+				fetches.add(new JobSourceFetch(source.type(), List.of(), false));
+			}
+		}
+		return fetches;
+	}
+
+	@Transactional
+	public List<JobSourceFetch> ingestAndFetch() {
+		List<JobSourceFetch> fetches = fetchAllSources();
+		persist(fetches);
+		return fetches;
+	}
+
+	private JobIngestionSummary persist(List<JobSourceFetch> fetches) {
+		Map<JobSourceType, JobSource> byType = sources.stream()
+				.collect(Collectors.toMap(JobSource::type, source -> source));
 		int succeeded = 0;
 		int failed = 0;
 		int created = 0;
 		int updated = 0;
 		int deactivated = 0;
-		for (JobSource source : sources) {
-			try {
-				List<RawJob> rawJobs = source.fetchJobs();
+		for (JobSourceFetch fetch : fetches) {
+			JobSource source = byType.get(fetch.source());
+			List<RawJob> rawJobs = fetch.jobs();
+			if (fetch.complete()) {
 				UpsertCounts counts = upsertAndDeactivate(source, rawJobs, true);
 				created += counts.created();
 				updated += counts.updated();
 				deactivated += counts.deactivated();
 				succeeded++;
-			} catch (IncompleteJobFetchException exception) {
-				logger.warn("{}", exception.getMessage());
-				try {
-					UpsertCounts counts = upsertAndDeactivate(source, exception.fetchedJobs(), false);
-					created += counts.created();
-					updated += counts.updated();
-					failed++;
-				} catch (RuntimeException sourceException) {
-					logger.error("Job ingestion failed for source {}", source.type(), sourceException);
-					failed++;
-				}
-			} catch (RuntimeException exception) {
-				logger.error("Job ingestion failed for source {}", source.type(), exception);
+			} else {
+				UpsertCounts counts = upsertAndDeactivate(source, rawJobs, false);
+				created += counts.created();
+				updated += counts.updated();
 				failed++;
 			}
 		}
 		return new JobIngestionSummary(succeeded, failed, created, updated, deactivated);
+	}
+
+	public record JobSourceFetch(JobSourceType source, List<RawJob> jobs, boolean complete) {
 	}
 
 	private UpsertCounts upsertAndDeactivate(JobSource source, List<RawJob> rawJobs, boolean completeFetch) {

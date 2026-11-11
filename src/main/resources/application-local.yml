@@ -1,0 +1,51 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:switchmate;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:create-drop}
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:false}
+
+server:
+  port: ${SERVER_PORT:8081}
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+app:
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  jwt:
+    secret: ${JWT_SECRET:U3dpdGNobWF0ZS1sb2NhbC1kZXYta2V5LTIwMjYtMDkt}
+  admin:
+    api-key: ${ADMIN_API_KEY:local-ingest-key}
+  storage:
+    resume-directory: ${RESUME_STORAGE_DIRECTORY:./uploads/resumes}
+  auth:
+    signup-draft:
+      ttl-minutes: ${SIGNUP_DRAFT_TTL_MINUTES:30}
+      cleanup-cron: ${SIGNUP_DRAFT_CLEANUP_CRON:0 */5 * * * *}
+  rate-limit:
+    signup-resume:
+      max-requests: ${SIGNUP_RESUME_RATE_LIMIT_MAX:5}
+      window-minutes: ${SIGNUP_RESUME_RATE_LIMIT_WINDOW:10}
+  jobs:
+    ingestion:
+      enabled: ${JOB_INGESTION_ENABLED:false}
+    greenhouse:
+      board-tokens: ${GREENHOUSE_BOARD_TOKENS:}
+    lever:
+      companies: ${LEVER_COMPANIES:leverdemo}
+    ashby:
+      boards: ${ASHBY_BOARDS:Ashby}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    api-key-openrouter: ${OPENROUTER_API_KEY:}
+    endpoint: ${OPENAI_ENDPOINT:https://api.openai.com/v1/chat/completions}
+    endpoint-openrouter: ${OPENROUTER_ENDPOINT:https://openrouter.ai/api/v1/chat/completions}
+    model: ${OPENAI_MODEL:gpt-4o-mini}
+    model-openrouter: ${OPENROUTER_MODEL:openai/gpt-4o-mini}

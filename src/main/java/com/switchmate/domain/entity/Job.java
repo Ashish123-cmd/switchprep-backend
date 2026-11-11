@@ -48,6 +48,7 @@ public class Job {
 	@Column(name = "apply_url", length = 2048)
 	private String applyUrl;
 
+	@Column(length = 8000)
 	private String description;
 
 	@Column(name = "min_experience")
