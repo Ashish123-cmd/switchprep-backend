@@ -1,8 +1,8 @@
 package com.switchmate.common.config;
 
-import java.util.List;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,22 +19,53 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.switchmate.security.AdminApiKeyAuthenticationFilter;
 import com.switchmate.security.JwtAuthenticationFilter;
 import com.switchmate.common.error.ApiErrorResponse;
 
 @Configuration
 public class SecurityConfiguration {
 
+	/**
+	 * The only endpoints that can be called without credentials. Every other
+	 * request must carry either a valid JWT or, for admin ingestion, the
+	 * configured admin API key.
+	 */
+	private static final String[] PUBLIC_AUTH_ENDPOINTS = {
+			"/api/auth/login",
+			"/api/auth/signup/resume",
+			"/api/auth/signup/complete",
+			"/api/auth/google"
+	};
+
+	private static final String[] PUBLIC_HEALTH_ENDPOINTS = {
+			"/actuator/health",
+			"/actuator/health/**"
+	};
+
+	private static final String[] PUBLIC_DOCUMENTATION_ENDPOINTS = {
+			"/swagger-ui",
+			"/swagger-ui/**",
+			"/swagger-ui.html",
+			"/v3/api-docs/**"
+	};
+
+	private final boolean publicApiDocs;
 	private final String frontendOrigin;
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final AdminApiKeyAuthenticationFilter adminApiKeyAuthenticationFilter;
 	private final ObjectMapper objectMapper;
 
 	public SecurityConfiguration(
+			@Value("${app.security.public-api-docs:false}") boolean publicApiDocs,
 			@Value("${app.cors.allowed-origin}") String frontendOrigin,
 			JwtAuthenticationFilter jwtAuthenticationFilter,
+			AdminApiKeyAuthenticationFilter adminApiKeyAuthenticationFilter,
 			ObjectMapper objectMapper) {
+		this.publicApiDocs = publicApiDocs;
 		this.frontendOrigin = frontendOrigin;
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+		this.adminApiKeyAuthenticationFilter = adminApiKeyAuthenticationFilter;
 		this.objectMapper = objectMapper;
 	}
 
@@ -47,22 +78,22 @@ public class SecurityConfiguration {
 				.httpBasic(basic -> basic.disable())
 				.formLogin(form -> form.disable())
 				.logout(logout -> logout.disable())
-				.authorizeHttpRequests(authorize -> authorize
-						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-						.requestMatchers("/swagger-ui", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
-						.permitAll()
-						.requestMatchers("/api/auth/signup/resume", "/api/auth/signup/complete", "/api/auth/login",
-								"/api/auth/google")
-						.permitAll()
-						.requestMatchers("/api/admin/jobs/ingest").permitAll()
-						.requestMatchers("/api/**").authenticated()
-						.anyRequest().denyAll())
+				.authorizeHttpRequests(authorize -> {
+					authorize.requestMatchers(PUBLIC_HEALTH_ENDPOINTS).permitAll();
+					authorize.requestMatchers(PUBLIC_AUTH_ENDPOINTS).permitAll();
+					if (publicApiDocs) {
+						authorize.requestMatchers(PUBLIC_DOCUMENTATION_ENDPOINTS).permitAll();
+					}
+					authorize.requestMatchers("/api/admin/**").hasRole(AdminApiKeyAuthenticationFilter.ADMIN_ROLE);
+					authorize.anyRequest().authenticated();
+				})
 				.exceptionHandling(exception -> exception
 						.authenticationEntryPoint((request, response, authException) -> writeError(
 								response, 401, "UNAUTHORIZED", "Authentication is required"))
 						.accessDeniedHandler((request, response, accessDeniedException) -> writeError(
 								response, 403, "FORBIDDEN", "Access is denied")))
-				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterBefore(adminApiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterAfter(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 				.build();
 	}
 
@@ -84,6 +115,14 @@ public class SecurityConfiguration {
 	FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilterRegistration(
 			JwtAuthenticationFilter filter) {
 		FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+		registration.setEnabled(false);
+		return registration;
+	}
+
+	@Bean
+	FilterRegistrationBean<AdminApiKeyAuthenticationFilter> adminApiKeyAuthenticationFilterRegistration(
+			AdminApiKeyAuthenticationFilter filter) {
+		FilterRegistrationBean<AdminApiKeyAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
 		registration.setEnabled(false);
 		return registration;
 	}

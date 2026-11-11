@@ -89,7 +89,7 @@ class SignupDraftServiceTest {
 		savedDraft.setExpiresAt(Instant.now().plus(Duration.ofMinutes(30)));
 		when(draftRepository.save(any(SignupDraft.class))).thenReturn(savedDraft);
 
-		SignupDraftService.SignupDraftResponse response = service.createDraft(file, "127.0.0.1");
+		SignupDraftService.SignupDraftResponse response = service.createDraft(file);
 
 		assertNotNull(response);
 		assertEquals(parsedProfile, response.parsedProfile());
@@ -104,7 +104,7 @@ class SignupDraftServiceTest {
 		MultipartFile file = mock(MultipartFile.class);
 		when(file.isEmpty()).thenReturn(true);
 
-		assertThrows(BadRequestException.class, () -> service.createDraft(file, "127.0.0.1"));
+		assertThrows(BadRequestException.class, () -> service.createDraft(file));
 	}
 
 	@Test
@@ -113,7 +113,7 @@ class SignupDraftServiceTest {
 		when(file.isEmpty()).thenReturn(false);
 		when(file.getSize()).thenReturn(6L * 1024 * 1024);
 
-		assertThrows(BadRequestException.class, () -> service.createDraft(file, "127.0.0.1"));
+		assertThrows(BadRequestException.class, () -> service.createDraft(file));
 	}
 
 	@Test
@@ -123,7 +123,7 @@ class SignupDraftServiceTest {
 		when(file.getSize()).thenReturn(1024L);
 		when(file.getContentType()).thenReturn("text/plain");
 
-		assertThrows(BadRequestException.class, () -> service.createDraft(file, "127.0.0.1"));
+		assertThrows(BadRequestException.class, () -> service.createDraft(file));
 	}
 
 	@Test
@@ -137,7 +137,7 @@ class SignupDraftServiceTest {
 		when(extractorRegistry.extract("application/pdf", "resume content".getBytes())).thenReturn("extracted text");
 		when(resumeParser.parse("extracted text")).thenThrow(new ResumeParsingException("Parser failed"));
 
-		assertThrows(ResumeParsingException.class, () -> service.createDraft(file, "127.0.0.1"));
+		assertThrows(ResumeParsingException.class, () -> service.createDraft(file));
 	}
 
 	@Test

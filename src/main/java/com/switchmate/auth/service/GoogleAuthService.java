@@ -1,6 +1,5 @@
 package com.switchmate.auth.service;
 
-import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -9,11 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.switchmate.auth.dto.GoogleAuthResponse;
 import com.switchmate.auth.google.GoogleIdentity;
 import com.switchmate.auth.google.GoogleIdentityVerifier;
+import com.switchmate.common.EmailNormalizer;
 import com.switchmate.common.exception.InvalidGoogleTokenException;
-import com.switchmate.common.exception.NotFoundException;
 import com.switchmate.domain.entity.Profile;
 import com.switchmate.domain.entity.User;
-import com.switchmate.repository.ProfileRepository;
 import com.switchmate.repository.UserRepository;
 import com.switchmate.security.TokenService;
 
@@ -22,19 +20,19 @@ public class GoogleAuthService {
 
 	private final GoogleIdentityVerifier googleIdentityVerifier;
 	private final UserRepository userRepository;
-	private final ProfileRepository profileRepository;
+	private final UserAccountLookup userAccountLookup;
 	private final UserProvisioningService userProvisioningService;
 	private final TokenService tokenService;
 
 	public GoogleAuthService(
 			GoogleIdentityVerifier googleIdentityVerifier,
 			UserRepository userRepository,
-			ProfileRepository profileRepository,
+			UserAccountLookup userAccountLookup,
 			UserProvisioningService userProvisioningService,
 			TokenService tokenService) {
 		this.googleIdentityVerifier = googleIdentityVerifier;
 		this.userRepository = userRepository;
-		this.profileRepository = profileRepository;
+		this.userAccountLookup = userAccountLookup;
 		this.userProvisioningService = userProvisioningService;
 		this.tokenService = tokenService;
 	}
@@ -46,7 +44,7 @@ public class GoogleAuthService {
 			throw new InvalidGoogleTokenException("Google account email is not verified");
 		}
 
-		String email = normalizeEmail(identity.email());
+		String email = EmailNormalizer.normalize(identity.email());
 		Optional<User> existingUser = userRepository.findByGoogleSubject(identity.subject());
 		User user;
 		boolean isNewUser = false;
@@ -62,8 +60,7 @@ public class GoogleAuthService {
 			}
 		}
 
-		Profile profile = profileRepository.findById(user.getId())
-				.orElseThrow(() -> new NotFoundException("Profile not found"));
+		Profile profile = userAccountLookup.requireProfile(user.getId());
 		return new GoogleAuthResponse(
 				tokenService.issue(user.getId()),
 				UserResponseMapper.toResponse(user, profile),
@@ -78,10 +75,6 @@ public class GoogleAuthService {
 	private String displayName(GoogleIdentity identity, String email) {
 		String name = identity.name();
 		return name == null || name.isBlank() ? email : name.strip();
-	}
-
-	private String normalizeEmail(String email) {
-		return email == null ? "" : email.strip().toLowerCase(Locale.ROOT);
 	}
 }
 

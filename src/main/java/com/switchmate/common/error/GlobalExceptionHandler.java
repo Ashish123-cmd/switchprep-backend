@@ -6,7 +6,6 @@ import java.util.List;
 import jakarta.validation.ConstraintViolationException;
 import com.switchmate.common.exception.BadRequestException;
 import com.switchmate.common.exception.ConflictException;
-import com.switchmate.common.exception.InvalidAdminApiKeyException;
 import com.switchmate.common.exception.InvalidGoogleTokenException;
 import com.switchmate.common.exception.NotFoundException;
 import com.switchmate.common.exception.RateLimitExceededException;
@@ -21,6 +20,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -62,6 +62,12 @@ public class GlobalExceptionHandler {
 		return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Request validation failed", fieldErrors);
 	}
 
+	@ExceptionHandler(MissingServletRequestPartException.class)
+	public ResponseEntity<ApiErrorResponse> handleMissingRequestPart(MissingServletRequestPartException exception) {
+		return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Request validation failed",
+				List.of(new FieldErrorResponse(exception.getRequestPartName(), "is required")));
+	}
+
 	@ExceptionHandler(NotFoundException.class)
 	public ResponseEntity<ApiErrorResponse> handleNotFound(NotFoundException exception) {
 		return error(HttpStatus.NOT_FOUND, "NOT_FOUND", exception.getMessage(), null);
@@ -95,11 +101,6 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(RateLimitExceededException.class)
 	public ResponseEntity<ApiErrorResponse> handleRateLimitExceeded(RateLimitExceededException exception) {
 		return error(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", exception.getMessage(), null);
-	}
-
-	@ExceptionHandler(InvalidAdminApiKeyException.class)
-	public ResponseEntity<ApiErrorResponse> handleInvalidAdminApiKey(InvalidAdminApiKeyException exception) {
-		return error(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Invalid admin API key", null);
 	}
 
 	@ExceptionHandler(InvalidGoogleTokenException.class)

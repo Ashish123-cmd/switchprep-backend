@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,8 +23,8 @@ public class InMemoryRateLimiter implements RateLimiter {
 
 	@Autowired
 	public InMemoryRateLimiter(
-			@org.springframework.beans.factory.annotation.Value("${app.rate-limit.signup-resume.max-requests:5}") int maxRequests,
-			@org.springframework.beans.factory.annotation.Value("${app.rate-limit.signup-resume.window-minutes:10}") long windowMinutes) {
+			@Value("${app.rate-limit.signup-resume.max-requests:5}") int maxRequests,
+			@Value("${app.rate-limit.signup-resume.window-minutes:10}") long windowMinutes) {
 		this(maxRequests, windowMinutes, Clock.systemUTC());
 	}
 

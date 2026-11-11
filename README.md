@@ -21,6 +21,7 @@ $env:DB_USERNAME = $env:POSTGRES_USER
 $env:DB_PASSWORD = $env:POSTGRES_PASSWORD
 $env:FRONTEND_ORIGIN = "http://localhost:5173"
 $env:JWT_SECRET = "base64-encoded-random-key-of-at-least-32-bytes"
+$env:GOOGLE_CLIENT_ID = "your-google-oauth-client-id.apps.googleusercontent.com"
 $env:ADMIN_API_KEY = "replace-with-a-local-admin-key"
 $env:RESUME_STORAGE_DIRECTORY = "./uploads/resumes"
 $env:SPRING_PROFILES_ACTIVE = "fake-ai"
@@ -44,7 +45,12 @@ For a quick integrated UI/API demo without database credentials, run with `SPRIN
 | `DB_PASSWORD` | Yes | Application database password |
 | `FRONTEND_ORIGIN` | Yes | Allowed browser origin for CORS |
 | `JWT_SECRET` | Yes | Base64-encoded signing key with at least 32 random bytes |
-| `GOOGLE_CLIENT_ID` | For Google sign-in | OAuth client ID used to verify Google ID token audiences |
+| `GOOGLE_CLIENT_ID` | For Google sign-in | OAuth client ID used to verify Google ID token audiences; `/api/auth/google` returns `500` when it is not set |
+| `PUBLIC_API_DOCS` | No | `true` exposes `/swagger-ui` and `/v3/api-docs` without a JWT; defaults to `false` (`true` in the `local` profile) |
+| `SIGNUP_DRAFT_TTL_MINUTES` | No | Signup draft lifetime in minutes, defaults to `30` |
+| `SIGNUP_DRAFT_CLEANUP_CRON` | No | Cron for deleting expired signup drafts, defaults to `0 */5 * * * *` |
+| `SIGNUP_RESUME_RATE_LIMIT_MAX` | No | Resume uploads allowed per client IP per window, defaults to `5` |
+| `SIGNUP_RESUME_RATE_LIMIT_WINDOW` | No | Resume upload rate-limit window in minutes, defaults to `10` |
 | `ADMIN_API_KEY` | For manual ingestion | Key sent as `X-Admin-Api-Key`; empty configuration rejects ingestion requests |
 | `SERVER_PORT` | No | HTTP port, defaults to `8080` |
 | `SPRING_PROFILES_ACTIVE` | No | Set to `fake-ai` to use the fake resume parser |
@@ -72,6 +78,67 @@ For a quick integrated UI/API demo without database credentials, run with `SPRIN
 - `fake-ai` selects `FakeResumeParser`, which returns fixed sample profile data and does not require an OpenAI key. PDF/DOCX text extraction and file storage still run normally.
 - `test` reads `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`, and `TEST_FRONTEND_ORIGIN`. The integration test uses Testcontainers and is skipped when Docker is unavailable.
 
+## Authentication API
+
+Only the endpoints below can be called without credentials:
+
+| Method | Path | Access | Request | Response |
+| --- | --- | --- | --- | --- |
+| `POST` | `/api/auth/signup/resume` | Public, rate limited per IP | `multipart/form-data` with a `file` part (PDF or DOCX, max 5 MB) | `201` `{ draftId, parsedProfile, expiresAt }` |
+| `POST` | `/api/auth/signup/complete` | Public | `{ draftId, name, email, password }` | `200` `{ token, user }` |
+| `POST` | `/api/auth/login` | Public | `{ email, password }` | `200` `{ token, user }` |
+| `POST` | `/api/auth/google` | Public | `{ idToken }` | `200` `{ token, user, isNewUser }` |
+| `GET` | `/api/auth/me` | Bearer JWT | – | `200` `{ id, name, email, profile: { onboardingCompleted } }` |
+| `GET` | `/actuator/health` | Public | – | `200` `{ "status": "UP" }` |
+
+Everything else (profile, preferences, standard answers, jobs, tracker, auto-apply) requires `Authorization: Bearer <token>`. `/api/admin/**` is authenticated with `X-Admin-Api-Key` instead of a JWT.
+
+`user` is always:
+
+```json
+{
+  "id": "6f0f0c3e-5f70-4f11-9a9f-6b1f0f3f9a10",
+  "name": "Alex Morgan",
+  "email": "alex.morgan@example.com",
+  "profile": { "onboardingCompleted": false }
+}
+```
+
+`parsedProfile` is the resume parser output, without account fields:
+
+```json
+{
+  "name": "Alex Morgan",
+  "phone": "+1 555 010 1234",
+  "location": "Seattle, WA",
+  "headline": "Software Engineer",
+  "summary": "Software engineer experienced in building reliable web applications.",
+  "totalExperienceYears": 5,
+  "skills": ["Java", "Spring Boot", "PostgreSQL"],
+  "experiences": [
+    {
+      "company": "Example Company",
+      "title": "Software Engineer",
+      "startDate": "2021-03-01",
+      "endDate": "2024-06-30",
+      "description": "Built and maintained backend services."
+    }
+  ],
+  "educations": [
+    { "institution": "Example University", "degree": "BS", "field": "Computer Science", "startYear": 2016, "endYear": 2020 }
+  ]
+}
+```
+
+Notes for clients:
+
+- Always send the `draftId` returned by `signup/resume` to `signup/complete`. Drafts expire after `SIGNUP_DRAFT_TTL_MINUTES` and are consumed on completion, so a stale or self-generated id returns `410 SIGNUP_DRAFT_EXPIRED`.
+- `experiences` and `educations` in `parsedProfile` do not carry ids; generated ids only exist on `GET /api/profile` after the account is created.
+- `startDate` / `endDate` are ISO dates (`yyyy-MM-dd`), while profile editors may submit `yyyy-MM`. Normalize on the client.
+- `signup/complete`, `login`, and `google` all return the JWT in `token`; store it and send it as a bearer token on every protected call.
+
+The legacy `POST /api/auth/signup` endpoint has been removed. Signup is now the two-step `signup/resume` → `signup/complete` flow.
+
 ## Job Ingestion
 
 Configure one or more board identifiers in `GREENHOUSE_BOARD_TOKENS`, `LEVER_COMPANIES`, and/or `ASHBY_BOARDS`. The scheduled run executes every six hours by default; change `JOB_INGESTION_CRON` or set `JOB_INGESTION_ENABLED=false` to disable it.
@@ -84,9 +151,13 @@ Invoke-RestMethod -Method Post `
   -Headers @{ "X-Admin-Api-Key" = $env:ADMIN_API_KEY }
 ```
 
+`/api/admin/**` is never anonymous: the request must present the configured `X-Admin-Api-Key` header (a user JWT is not required). A missing or wrong key returns `401 UNAUTHORIZED`.
+
 ## API Documentation
 
 Swagger UI is available at [http://localhost:8080/swagger-ui](http://localhost:8080/swagger-ui). The generated OpenAPI document is at `http://localhost:8080/v3/api-docs`.
+
+Those two paths are **not public by default**: they require the same bearer JWT as the rest of the API. Set `PUBLIC_API_DOCS=true` (the `local` profile already defaults to `true`) to expose them without a token. The generated document declares the `bearerAuth` scheme globally and marks `login`, `signup/resume`, `signup/complete`, and `google` as public.
 
 ## Resume Upload With Fake Parser
 
@@ -131,3 +202,24 @@ Successful API endpoints return their resource DTOs directly. Errors use the com
 ```
 
 `fieldErrors` is omitted when an error has no field-level details. Authentication and authorization errors use the same envelope.
+
+## Frontend Contract Notes
+
+The shapes above are the backend source of truth for the F1 auth flow. The current
+frontend `AuthService` interface needs these changes to match:
+
+1. `getCurrentUser(): Promise<string | null>` → `GET /api/auth/me` returns the full
+   user object, so return `Promise<AuthUser | null>` and read `user.email` where the
+   UI needs a string.
+2. `signIn`, `signInWithGoogle`, and `completeSignup` return `void` today, but the
+   API returns `{ token, user }` (`{ token, user, isNewUser }` for Google). Return
+   those payloads so the JWT can be stored and the new-user flag can drive
+   `/jobs` vs `/onboarding` without an extra request.
+3. `parseResumeForSignup(file): Promise<UserProfile>` → `POST /api/auth/signup/resume`
+   returns `{ draftId, parsedProfile, expiresAt }`. Return that draft object and map
+   `parsedProfile.name` to `fullName`; there is no `email`, no `resume`, and no ids on
+   parsed experiences/educations. Parsed dates are `yyyy-MM-dd`, so convert to the
+   `yyyy-MM` value used by the month inputs.
+4. `SignupPage` currently generates `draftId` with `crypto.randomUUID()`; it must send
+   the `draftId` returned by the resume upload, otherwise `/api/auth/signup/complete`
+   responds `410 SIGNUP_DRAFT_EXPIRED`.

@@ -58,7 +58,7 @@ class GoogleAuthServiceTest {
 		googleAuthService = new GoogleAuthService(
 				googleIdentityVerifier,
 				userRepository,
-				profileRepository,
+				new UserAccountLookup(userRepository, profileRepository),
 				userProvisioningService,
 				tokenService);
 	}

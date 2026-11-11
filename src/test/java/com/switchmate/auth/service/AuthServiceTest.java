@@ -79,6 +79,7 @@ class AuthServiceTest {
 				passwordEncoder,
 				tokenService,
 				userProvisioningService,
+				new UserAccountLookup(userRepository, profileRepository),
 				signupDraftService,
 				new SignupProfileMapper(),
 				fileStorage);

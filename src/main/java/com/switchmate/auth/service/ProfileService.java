@@ -14,6 +14,7 @@ import com.switchmate.auth.dto.ExperienceRequest;
 import com.switchmate.auth.dto.ExperienceResponse;
 import com.switchmate.auth.dto.UserProfileRequest;
 import com.switchmate.auth.dto.UserProfileResponse;
+import com.switchmate.common.EmailNormalizer;
 import com.switchmate.common.exception.BadRequestException;
 import com.switchmate.common.exception.ConflictException;
 import com.switchmate.common.exception.NotFoundException;
@@ -36,24 +37,27 @@ public class ProfileService {
 	private final ExperienceRepository experienceRepository;
 	private final EducationRepository educationRepository;
 	private final StandardAnswerRepository standardAnswerRepository;
+	private final UserAccountLookup userAccountLookup;
 
 	public ProfileService(
 			UserRepository userRepository,
 			ProfileRepository profileRepository,
 			ExperienceRepository experienceRepository,
 			EducationRepository educationRepository,
-			StandardAnswerRepository standardAnswerRepository) {
+			StandardAnswerRepository standardAnswerRepository,
+			UserAccountLookup userAccountLookup) {
 		this.userRepository = userRepository;
 		this.profileRepository = profileRepository;
 		this.experienceRepository = experienceRepository;
 		this.educationRepository = educationRepository;
 		this.standardAnswerRepository = standardAnswerRepository;
+		this.userAccountLookup = userAccountLookup;
 	}
 
 	@Transactional(readOnly = true)
 	public UserProfileResponse get(UUID userId) {
-		User user = findUser(userId);
-		Profile profile = findProfile(userId);
+		User user = userAccountLookup.requireUser(userId);
+		Profile profile = userAccountLookup.requireProfile(userId);
 		return toResponse(user, profile,
 				experienceRepository.findAllByProfileId(userId),
 				educationRepository.findAllByProfileId(userId));
@@ -61,9 +65,9 @@ public class ProfileService {
 
 	@Transactional
 	public UserProfileResponse replace(UUID userId, UserProfileRequest request) {
-		User user = findUser(userId);
-		Profile profile = findProfile(userId);
-		String email = request.email().strip().toLowerCase(java.util.Locale.ROOT);
+		User user = userAccountLookup.requireUser(userId);
+		Profile profile = userAccountLookup.requireProfile(userId);
+		String email = EmailNormalizer.normalize(request.email());
 		if (userRepository.existsByEmailAndIdNot(email, userId)) {
 			throw new ConflictException("Email is already registered");
 		}
@@ -96,8 +100,8 @@ public class ProfileService {
 
 	@Transactional
 	public UserProfileResponse complete(UUID userId) {
-		User user = findUser(userId);
-		Profile profile = findProfile(userId);
+		User user = userAccountLookup.requireUser(userId);
+		Profile profile = userAccountLookup.requireProfile(userId);
 		StandardAnswer answers = standardAnswerRepository.findById(userId)
 				.orElseThrow(() -> new NotFoundException("Standard answers not found"));
 		if (user.getFullName() == null || user.getFullName().isBlank()
@@ -109,14 +113,6 @@ public class ProfileService {
 		profile.setOnboardingCompleted(true);
 		profileRepository.save(profile);
 		return get(userId);
-	}
-
-	private User findUser(UUID userId) {
-		return userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-	}
-
-	private Profile findProfile(UUID userId) {
-		return profileRepository.findById(userId).orElseThrow(() -> new NotFoundException("Profile not found"));
 	}
 
 	private Experience toExperience(UUID userId, ExperienceRequest request) {

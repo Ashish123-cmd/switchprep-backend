@@ -22,11 +22,15 @@ public class GoogleApiIdentityVerifier implements GoogleIdentityVerifier {
 
 	private static final String NAME_CLAIM = "name";
 
+	private final GoogleIdTokenVerifier verifier;
+
 	private final String clientId;
-	private final NetHttpTransport httpTransport = new NetHttpTransport();
 
 	public GoogleApiIdentityVerifier(@Value("${app.google.client-id:}") String clientId) {
 		this.clientId = clientId == null ? "" : clientId.strip();
+		this.verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
+				.setAudience(List.of(this.clientId))
+				.build();
 	}
 
 	@Override
@@ -40,7 +44,7 @@ public class GoogleApiIdentityVerifier implements GoogleIdentityVerifier {
 
 		GoogleIdToken verifiedToken;
 		try {
-			verifiedToken = verifier().verify(idToken);
+			verifiedToken = verifier.verify(idToken);
 		} catch (GeneralSecurityException | IOException | RuntimeException exception) {
 			throw new InvalidGoogleTokenException("Google ID token could not be verified", exception);
 		}
@@ -60,11 +64,5 @@ public class GoogleApiIdentityVerifier implements GoogleIdentityVerifier {
 				email,
 				Boolean.TRUE.equals(payload.getEmailVerified()),
 				(String) payload.get(NAME_CLAIM));
-	}
-
-	private GoogleIdTokenVerifier verifier() {
-		return new GoogleIdTokenVerifier.Builder(httpTransport, GsonFactory.getDefaultInstance())
-				.setAudience(List.of(clientId))
-				.build();
 	}
 }

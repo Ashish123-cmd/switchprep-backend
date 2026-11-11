@@ -50,7 +50,8 @@ class ProfileCompletionTest {
 	@BeforeEach
 	void setUp() {
 		profileService = new ProfileService(userRepository, profileRepository, experienceRepository,
-				educationRepository, standardAnswerRepository);
+				educationRepository, standardAnswerRepository,
+				new UserAccountLookup(userRepository, profileRepository));
 		user = new User("person@example.com", "hash", "Taylor");
 		profile = new Profile(userId);
 		answers = new StandardAnswer(userId);

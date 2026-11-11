@@ -41,9 +41,7 @@ public class UserProvisioningService {
 
 	@Transactional
 	public User createUserWithDefaults(String email, String passwordHash, String fullName) {
-		User user = userRepository.save(new User(email, passwordHash, fullName));
-		provisionDefaults(user.getId());
-		return user;
+		return persistWithDefaults(new User(email, passwordHash, fullName));
 	}
 
 	@Transactional
@@ -51,16 +49,16 @@ public class UserProvisioningService {
 		User user = new User(email, null, fullName);
 		user.setAuthProvider(AuthProvider.GOOGLE);
 		user.setGoogleSubject(googleSubject);
-		user = userRepository.save(user);
-		provisionDefaults(user.getId());
-		return user;
+		return persistWithDefaults(user);
 	}
 
-	@Transactional
-	public void provisionDefaults(UUID userId) {
+	private User persistWithDefaults(User user) {
+		User savedUser = userRepository.save(user);
+		UUID userId = savedUser.getId();
 		profileRepository.save(new Profile(userId));
 		jobPreferenceRepository.save(new JobPreference(userId));
 		standardAnswerRepository.save(new StandardAnswer(userId));
 		autoApplySettingsRepository.save(new AutoApplySettings(userId));
+		return savedUser;
 	}
 }
